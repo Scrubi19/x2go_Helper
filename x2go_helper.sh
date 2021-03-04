@@ -1,41 +1,62 @@
 #!/bin/bash
 
 print_main_menu() {
-	menu=$(zenity --list  --width=500 --height=400 --title="x2go Helper" \
-    --text="Select operation:" \
-    --column="available commands" \
-    --column="operation for" \
-	"Installation" "client / server" \
-	"List of connected USB devices" "client / server" \
-	"List of already shared devices" "client / server" \
-	"Bind usb device" "server" \
-	"Unbind usb device" "server" \
-	"Attach usb device" "client" \
-	"Detach usb device" "client" \
-	"Systemd scripts" "client / server")
+	menu=$(zenity --list --width=450 --height=310 --title="x2go Helper" \
+    --text="Select Item" \
+    --column="Available operations" \
+    --column="Info" \
+	"Installation" "required at first start" \
+	"usbip"        "list of usbip commands" \
+	"x2go"         "manage x2go sessions")
 }
 
 print_installation_menu() {
-	install_menu=$(zenity --list  --width=500 --height=400 --title="x2go Helper" \
-    --text="Select tools to install:" \
-    --column="" \
-    --column="operation for" \
+	install_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+    --text="Install the required tools:" \
+    --column="Available tools" \
+    --column="Operation for" \
+    "⮪ Back"          " " \
+    "usbip"            "tool for USB device sharing" \
+	"x2goserver"       "tool for host" \
+	"x2goclient"       "tool for client ")
+}
+
+print_usbip_menu() {
+	usbip_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+    --text="Select operation:" \
+    --column="Available commands" \
+    --column="Operation for" \
     "⮪ Back" "" \
-    "usbip" "client / server" \
-	"x2goserver        " "server" \
-	"x2goclient        " "client")
+	"List of connected USB devices"  "client / server" \
+	"List of already shared devices" "client / server" \
+	"Bind usb device"                "server" \
+	"Unbind usb device"              "server" \
+	"Attach usb device"              "client" \
+	"Detach usb device"              "client" \
+	"Autostartup manage"             "client / server")
+
 }
 
 print_scripts_menu() {
-	scripts_menu=$(zenity --list  --width=500 --height=400 --title="x2go Helper" \
+	scripts_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
     --text="Select operation:" \
-    --column="available commands" \
-    --column="operation for" \
+    --column="Available commands" \
+    --column="Operation for" \
     "⮪ Back" "" \
-	"Create systemd script for share USB device" "server" \
-	"Delete systemd script for share USB device" "server" \
+	"Create systemd script for share USB device"  "server" \
+	"Delete systemd script for share USB device"  "server" \
 	"Create systemd script for attach USB device" "client" \
 	"Delete systemd script for attach USB device" "client")
+}
+
+
+print_x2go_menu() {
+	x2go_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+    --text="Select operation:" \
+    --column="Available commands" \
+    --column="Operation for" \
+    "⮪ Back" "" \
+	"Create autostartup x2go session" "client")
 }
 
 if [ "$EUID" -ne 0 ]
@@ -167,248 +188,287 @@ while true; do
 			done
 		;;
 
-		"List of connected USB devices" )
-
-			list_connection=$(usbip list -l)
-			zenity --info --width=450 --height=250 --text "<b>usbip list -l</b> \n $list_connection "
-
-		;;
-
-		"List of already shared devices" )
-			ip=$(zenity --entry \
-				--title="" \
-				--text="Enter server IP:" \
-				--entry-text "localhost")
-
-			list_shared=$(usbip list -r $ip)
-
-			if [[ length=${#list_shared} -eq 0 ]]; then
-				zenity --warning --width=450 --height=150 --text "<b>usbip list -r $ip </b> \nno exportable devices found on $ip "
-			else
-				zenity --info --width=450 --height=250 --text "<b>usbip list -r $ip </b> \n$list_shared "
-			fi
-		;;
-
-		"Bind usb device" )
-			bind_ID=$(zenity --entry \
-				--title="" \
-				--text="Enter usb busID:" \
-				--entry-text "2-1")
-
-			usbip bind -b $bind_ID > /dev/null 2>&1
-			list_bind="$?"
-
-			if [[ list_bind -eq 0 ]]; then
-				zenity --info --width=450 --height=150 --text "<b> usbip bind -b $bind_ID</b>\nbind device on busid $bind_ID: complete"
-			elif [[ list_bind -eq 1 ]]; then
-				zenity --error --width=450 --height=150 --text "<b>usbip bind -b $bind_ID</b>\ndevice on busid $bind_ID is already bound to usbip-host or no exist"
-			fi
-		;;
-
-		"Unbind usb device" )
-			unbind_ID=$(zenity --entry \
-				--title="" \
-				--text="Enter usb busID:" \
-				--entry-text "2-1")
-
-			usbip unbind -b $unbind_ID > /dev/null 2>&1
-			list_unbind="$?"
-
-			if [[ list_unbind -eq 0 ]]; then
-				zenity --info --width=450 --height=150 --text "<b>usbip unbind -b $unbind_ID</b>\nunbind device on busid $unbind_ID: complete"
-			elif [[ list_unbind -eq 1 ]]; then
-				zenity --error --width=450 --height=150 --text "<b>usbip unbind -b $unbind_ID</b>\ndevice is not bound to usbip-host driver or no exist"
-			fi
-		;;
-
-		"Attach usb device" )
-			IP=$(zenity --entry \
-				--title="" \
-				--text="Enter server IP:" \
-				--entry-text "localhost")
-			ID=$(zenity --entry \
-				--title="" \
-				--text="Enter usb busID:" \
-				--entry-text "2-1")
-
-			sudo usbip attach -r $IP -b $ID /dev/null 2>&1
-			list_attach="$?"
-
-			if [[ list_attach -eq 0 ]]; then
-				zenity --info --width=450 --height=150 --text "<b>sudo usbip attach -r $IP -b $ID</b>\nAttach Request successfully completed"
-			elif [[ list_attach -eq 1 ]]; then
-				zenity --info --width=450 --height=150 --text "<b>sudo usbip attach -r $IP -b $ID</b>\nAttach Request for $ID failed - Device not found"
-			fi
-		;;
-
-		"Detach usb device" )
-			list_ports=$(sudo usbip port)
-
-			port=$(zenity --entry \
-				--title="Enter usb port:" \
-				--width=450 --height=150 \
-				--text="$list_ports" \
-				--entry-text "00")
-			
-			list_detach=$(sudo usbip detach --port=$port)
-
-			if [[ list_detach -eq 0 ]]; then
-				zenity --info --width=450 --height=150 --text "<b>sudo usbip detach --port=$port</b>\n$port is now detached or already detached\n"
-			elif [[ list_detach -eq 1 ]]; then
-				zenity --error --width=450 --height=150 --text "<b>sudo usbip detach --port=$port</b>Error while detaching device\n"
-			fi
-		;;
-
-		"Systemd scripts" )
+		"usbip" )
 			while true; do
-				print_scripts_menu
-				selected_script=$( echo $scripts_menu | awk -F ',' '{print $1}' )
+				print_usbip_menu
+				selected_usbip=$( echo $usbip_menu | awk -F ',' '{print $1}' )
 
-				case "${selected_script}" in
-					"Create systemd script for share USB device" )
-						{
-				  			echo "[Unit]"
-				  			echo "Description=USBIPd"
-				  			echo "[Service]"
-				  			echo "ExecStart=/scripts/usbipd"
-				  			echo "Type=oneshot"
-				  			echo "RemainAfterExit=yes"
-				  			echo "[Install]"
-				  			echo "WantedBy=multi-user.target"
-						} > /etc/systemd/system/usbipd.service	
-							
-						systemctl daemon-reload
-						systemctl enable usbipd
+				case "${selected_usbip}" in
+					"List of connected USB devices" )
 
-						if ! [ -d /scripts ]; then
-							sudo mkdir /scripts
-						fi
-
-						list_auto=$(sudo usbip list -l)
-
-						auto_usbID=$(zenity --entry \
-						--title="Enter a USB id to automatically bind(share) at system startup:" \
-						--width=500 --height=150 \
-						--text="$list_auto" \
-						--entry-text "2-1")
-
-						if [[ $auto_usbID -eq "" ]]; then
-							break;
-						fi
-
-						{
-							echo "#!/bin/sh"
-							echo "PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-							echo "usbipd -D"
-							echo "usbip bind -b $auto_usbID"
-							echo "usbip attach --remote=localhost --busid=$auto_usbID"
-							echo "sleep 2"
-							echo "usbip detach --port=00"
-						} > /scripts/usbipd
-						
-						sudo chmod +x /scripts/usbipd
-
-						systemctl start usbipd
-						systemctl status usbipd > /dev/null 2>&1
-
-						usbipd_status="$?"
-
-						if [[ usbipd_status -eq 0 ]]; then
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipd.service activated!"
-						elif [[ usbipd_status -eq 1 ]]; then
-							zenity --error --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nError while starting usbipd.service"
-						fi
+						list_connection=$(usbip list -l)
+						zenity --info --width=450 --height=250 --text "<b>usbip list -l</b> \n $list_connection "
 					;;
 
-					"Delete systemd script for share USB device" )
-						systemctl stop usbipd
-						systemctl disable usbipd
+					"List of already shared devices" )
 
-						systemctl status usbipd > /dev/null 2>&1
-						delete_status="$?"
+						ip=$(zenity --entry \
+							--title="" \
+							--text="Enter server IP:" \
+							--entry-text "localhost")
 
-						sudo rm /scripts/usbipd
-						sudo rm /etc/systemd/system/usbipd.service
-						systemctl daemon-reload
+						list_shared=$(usbip list -r $ip)
 
-						if [[ delete_status -eq 4 ]]; then
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipd.service already deleted"
+						if [[ length=${#list_shared} -eq 0 ]]; then
+							zenity --warning --width=450 --height=150 --text "<b>usbip list -r $ip </b> \nno exportable devices found on $ip "
 						else
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipd.service succesfully deleted"
+							zenity --info --width=450 --height=250 --text "<b>usbip list -r $ip </b> \n$list_shared "
 						fi
 					;;
 
-					"Create systemd script for attach USB device" )
-						{
-							echo "[Unit]"
-							echo "Description=USBIPdclient"
-							echo "[Service]"
-							echo "ExecStart=/scripts/usbipdclient"
-							echo "Type=oneshot"
-							echo "RemainAfterExit=yes"
-							echo "[Install]"
-							echo "WantedBy=multi-user.target"
-						} > /etc/systemd/system/usbipdclient.service
+					"Bind usb device" )
 
-						systemctl daemon-reload
-						systemctl enable usbipdclient
+						bind_ID=$(zenity --entry \
+							--title="" \
+							--text="Enter usb busID:" \
+							--entry-text "2-1")
 
-						if ! [ -d /scripts ]; then
-							sudo mkdir /scripts
+						usbip bind -b $bind_ID > /dev/null 2>&1
+						list_bind="$?"
+
+						if [[ list_bind -eq 0 ]]; then
+							zenity --info --width=450 --height=150 --text "<b> usbip bind -b $bind_ID</b>\nbind device on busid $bind_ID: complete"
+						elif [[ list_bind -eq 1 ]]; then
+							zenity --error --width=450 --height=150 --text "<b>usbip bind -b $bind_ID</b>\ndevice on busid $bind_ID is already bound to usbip-host or no exist"
 						fi
+					;;
+					"Unbind usb device" )
 
-						auto_ip=$(zenity --entry \
-						--title="" \
-						--text="Enter server IP to automatically attach at system startup:" \
-						--entry-text "localhost")
+						unbind_ID=$(zenity --entry \
+							--title="" \
+							--text="Enter usb busID:" \
+							--entry-text "2-1")
 
-						auto_id=$(zenity --entry \
-						--title="" \
-						--text="Enter a USB id to automatically attach at system startup:" \
-						--entry-text "2-1")
+						usbip unbind -b $unbind_ID > /dev/null 2>&1
+						list_unbind="$?"
+
+						if [[ list_unbind -eq 0 ]]; then
+							zenity --info --width=450 --height=150 --text "<b>usbip unbind -b $unbind_ID</b>\nunbind device on busid $unbind_ID: complete"
+						elif [[ list_unbind -eq 1 ]]; then
+							zenity --error --width=450 --height=150 --text "<b>usbip unbind -b $unbind_ID</b>\ndevice is not bound to usbip-host driver or no exist"
+						fi
+					;;
+					"Attach usb device" )
+
+						IP=$(zenity --entry \
+							--title="" \
+							--text="Enter server IP:" \
+							--entry-text "localhost")
+						ID=$(zenity --entry \
+							--title="" \
+							--text="Enter usb busID:" \
+							--entry-text "2-1")
+
+						sudo usbip attach -r $IP -b $ID /dev/null 2>&1
+						list_attach="$?"
+
+						if [[ list_attach -eq 0 ]]; then
+							zenity --info --width=450 --height=150 --text "<b>sudo usbip attach -r $IP -b $ID</b>\nAttach Request successfully completed"
+						elif [[ list_attach -eq 1 ]]; then
+							zenity --info --width=450 --height=150 --text "<b>sudo usbip attach -r $IP -b $ID</b>\nAttach Request for $ID failed - Device not found"
+						fi
+					;;
+					"Detach usb device" )
+
+						list_ports=$(sudo usbip port)
+
+						port=$(zenity --entry \
+							--title="Enter usb port:" \
+							--width=450 --height=150 \
+							--text="$list_ports" \
+							--entry-text "00")
 						
-						{
-							echo "#!/bin/sh"
-							echo "PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-							echo "usbipd -D"
-							echo "sudo usbip attach -r $auto_ip -b $auto_id"
-						} > /scripts/usbipdclient
+						list_detach=$(sudo usbip detach --port=$port)
 
-						sudo chmod +x /scripts/usbipdclient
-
-						systemctl start usbipdclient
-						systemctl status usbipdclient > /dev/null 2>&1
-						usbipcl_status="$?"
-
-						if [[ usbipd_status -eq 0 ]]; then
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipclient.service activated!"
-						elif [[ usbipd_status -eq 1 ]]; then
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nError while starting usbipclient.service"
-						fi
-
-					;;
-
-					"Delete systemd script for attach USB device" )
-						systemctl stop usbipdclient
-						systemctl disable usbipdclient
-
-						systemctl status usbipdclient > /dev/null 2>&1
-						delete="$?"
-
-						sudo rm /scripts/usbipdclient
-						sudo rm /etc/systemd/system/usbipdclient.service
-						systemctl daemon-reload
-
-						if [[ delete -eq 4 ]]; then
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipdclient </b>\nusbipdclient.service already deleted"
-						else
-							zenity --info --width=450 --height=150 --text "<b>systemctl status usbipdclient </b>\nusbipdclient.service succesfully deleted"
+						if [[ list_detach -eq 0 ]]; then
+							zenity --info --width=450 --height=150 --text "<b>sudo usbip detach --port=$port</b>\n$port is now detached or already detached\n"
+						elif [[ list_detach -eq 1 ]]; then
+							zenity --error --width=450 --height=150 --text "<b>sudo usbip detach --port=$port</b>Error while detaching device\n"
 						fi
 					;;
 
 					"⮪ Back" )
 						break;
 					;;
+
+					"")
+						break;
+					;;
+
+					"Autostartup manage" )
+					while true; do
+						print_scripts_menu
+						selected_script=$( echo $scripts_menu | awk -F ',' '{print $1}' )
+
+						case "${selected_script}" in
+							"Create systemd script for share USB device" )
+								{
+						  			echo "[Unit]"
+						  			echo "Description=USBIPd"
+						  			echo "[Service]"
+						  			echo "ExecStart=/scripts/usbipd"
+						  			echo "Type=oneshot"
+						  			echo "RemainAfterExit=yes"
+						  			echo "[Install]"
+						  			echo "WantedBy=multi-user.target"
+								} > /etc/systemd/system/usbipd.service	
+									
+								systemctl daemon-reload
+								systemctl enable usbipd
+
+								if ! [ -d /scripts ]; then
+									sudo mkdir /scripts
+								fi
+
+								list_auto=$(sudo usbip list -l)
+
+								auto_usbID=$(zenity --entry \
+								--title="Enter a USB id to automatically bind(share) at system startup:" \
+								--width=500 --height=150 \
+								--text="$list_auto" \
+								--entry-text "2-1")
+
+								if [[ $auto_usbID -eq "" ]]; then
+									break;
+								fi
+
+								{
+									echo "#!/bin/sh"
+									echo "PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+									echo "usbipd -D"
+									echo "usbip bind -b $auto_usbID"
+									echo "usbip attach --remote=localhost --busid=$auto_usbID"
+									echo "sleep 2"
+									echo "usbip detach --port=00"
+								} > /scripts/usbipd
+								
+								sudo chmod +x /scripts/usbipd
+
+								systemctl start usbipd
+								systemctl status usbipd > /dev/null 2>&1
+
+								usbipd_status="$?"
+
+								if [[ usbipd_status -eq 0 ]]; then
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipd.service activated!"
+								elif [[ usbipd_status -eq 1 ]]; then
+									zenity --error --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nError while starting usbipd.service"
+								fi
+							;;
+
+							"Delete systemd script for share USB device" )
+								systemctl stop usbipd
+								systemctl disable usbipd
+
+								systemctl status usbipd > /dev/null 2>&1
+								delete_status="$?"
+
+								sudo rm /scripts/usbipd
+								sudo rm /etc/systemd/system/usbipd.service
+								systemctl daemon-reload
+
+								if [[ delete_status -eq 4 ]]; then
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipd.service already deleted"
+								else
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipd.service succesfully deleted"
+								fi
+							;;
+
+							"Create systemd script for attach USB device" )
+								{
+									echo "[Unit]"
+									echo "Description=USBIPdclient"
+									echo "[Service]"
+									echo "ExecStart=/scripts/usbipdclient"
+									echo "Type=oneshot"
+									echo "RemainAfterExit=yes"
+									echo "[Install]"
+									echo "WantedBy=multi-user.target"
+								} > /etc/systemd/system/usbipdclient.service
+
+								systemctl daemon-reload
+								systemctl enable usbipdclient
+
+								if ! [ -d /scripts ]; then
+									sudo mkdir /scripts
+								fi
+
+								auto_ip=$(zenity --entry \
+								--title="" \
+								--text="Enter server IP to automatically attach at system startup:" \
+								--entry-text "localhost")
+
+								auto_id=$(zenity --entry \
+								--title="" \
+								--text="Enter a USB id to automatically attach at system startup:" \
+								--entry-text "2-1")
+								
+								{
+									echo "#!/bin/sh"
+									echo "PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+									echo "usbipd -D"
+									echo "sudo usbip attach -r $auto_ip -b $auto_id"
+								} > /scripts/usbipdclient
+
+								sudo chmod +x /scripts/usbipdclient
+
+								systemctl start usbipdclient
+								systemctl status usbipdclient > /dev/null 2>&1
+								usbipcl_status="$?"
+
+								if [[ usbipd_status -eq 0 ]]; then
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nusbipclient.service activated!"
+								elif [[ usbipd_status -eq 1 ]]; then
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipd </b>\nError while starting usbipclient.service"
+								fi
+
+							;;
+
+							"Delete systemd script for attach USB device" )
+								systemctl stop usbipdclient
+								systemctl disable usbipdclient
+
+								systemctl status usbipdclient > /dev/null 2>&1
+								delete="$?"
+
+								sudo rm /scripts/usbipdclient
+								sudo rm /etc/systemd/system/usbipdclient.service
+								systemctl daemon-reload
+
+								if [[ delete -eq 4 ]]; then
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipdclient </b>\nusbipdclient.service already deleted"
+								else
+									zenity --info --width=450 --height=150 --text "<b>systemctl status usbipdclient </b>\nusbipdclient.service succesfully deleted"
+								fi
+							;;
+
+							"⮪ Back" )
+								break;
+							;;
+
+							"")
+								break;
+							;;
+						esac
+					done
+		;;
+				esac
+
+			done
+		;;
+
+		"x2go" )
+			while true; do
+				print_x2go_menu
+				x2go_selected_item=$( echo $x2go_menu | awk -F ',' '{print $1}' )
+				case "${x2go_selected_item}" in
+					"Create autostartup x2go session" )
+						echo "in developing..."
+					;;
+
+					"⮪ Back")
+						break;
+					;;		
 
 					"")
 						break;
@@ -422,7 +482,7 @@ while true; do
 		;;
 
 		*)
-			zenity --warning --text "Operation was not selected" --width=300
+			zenity --warning --text "Operation was not selected" --width=330
 		;;
 	esac
 done
