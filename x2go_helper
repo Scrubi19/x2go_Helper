@@ -23,23 +23,23 @@ print_installation_menu() {
 
 print_usbip_menu() {
 	usbip_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
-    --text="Select operation:" \
+    --text="Select item:" \
     --column="Available commands" \
     --column="Operation for" \
     "⮪ Back" "" \
 	"List of connected USB devices"  "client / server" \
 	"List of already shared devices" "client / server" \
-	"Bind usb device"                "server" \
-	"Unbind usb device"              "server" \
-	"Attach usb device"              "client" \
-	"Detach usb device"              "client" \
+	"Bind usb device"                "       server" \
+	"Unbind usb device"              "       server" \
+	"Attach usb device"              "       client" \
+	"Detach usb device"              "       client" \
 	"Autostartup manage"             "client / server")
 
 }
 
 print_scripts_menu() {
 	scripts_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
-    --text="Select operation:" \
+    --text="Select item:" \
     --column="Available commands" \
     --column="Operation for" \
     "⮪ Back" "" \
@@ -52,11 +52,11 @@ print_scripts_menu() {
 
 print_x2go_menu() {
 	x2go_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
-    --text="Select operation:" \
+    --text="Select item:" \
     --column="Available commands" \
     --column="Operation for" \
     "⮪ Back" "" \
-	"Create autostartup x2go session" "client")
+	"Create autostartup x2go session" "        client")
 }
 
 if [ "$EUID" -ne 0 ]
@@ -76,25 +76,49 @@ while true; do
 				selected_install_list=$( echo $install_menu | awk -F ',' '{print $1}' )
 				case "${selected_install_list}" in
 					"usbip" )
-						apt-get update -y 
-						apt-get dist-upgrade -y 
-						progress=$(apt-get install linux-tools-`uname -r` -y)
-						{
-							echo "usbip-core"
-							echo "usbip-host"
-							echo "vhci-hcd"
-						} > /etc/modules
- 	
-						sudo usbipd -D
+						if [[ "$system" == *"Raspbian"* ]]; then
+							apt-get update -y 
+							apt-get dist-upgrade -y 
+							progress=$(apt-get install usbip)
 
-						if [[ "$progress" == *"is already the newest version"* || \
-						      "$progress" == *"Уже установлен пакет"* ]]; then
-							zenity --info --width=200 --height=100 --text "usbip already installed"
-						elif [[ "$progress" == *"Setting up linux-tools"* ||
-						        "$progress" == *"Настраивается пакет linux-tools"* ]]; then
-							zenity --info --width=200 --height=100 --text "usbip succesfully installed"
-							clear
+							{
+								echo "usbip-core"
+								echo "usbip-host"
+								echo "vhci-hcd"
+							} > /etc/modules
+
+							if [[ "$progress" == *"is already the newest version"* || \
+							      "$progress" == *"Уже установлен пакет"* ]]; then
+								zenity --info --width=200 --height=100 --text "usbip already installed"
+							elif [[ "$progress" == *"Setting up usbip"* ||
+							        "$progress" == *"Настраивается пакет usbip"* ]]; then
+								zenity --info --width=200 --height=100 --text "usbip succesfully installed"
+								clear
+							fi
+
+						elif [[ "$system" == *"Ubuntu"* ]]; then
+							apt-get update -y 
+							apt-get dist-upgrade -y 
+							progress=$(apt-get install linux-tools-`uname -r` -y)
+							{
+								echo "usbip-core"
+								echo "usbip-host"
+								echo "vhci-hcd"
+							} > /etc/modules
+	 	
+							sudo usbipd -D
+
+							if [[ "$progress" == *"is already the newest version"* || \
+							      "$progress" == *"Уже установлен пакет"* ]]; then
+								zenity --info --width=200 --height=100 --text "usbip already installed"
+							elif [[ "$progress" == *"Setting up usbip"* ||
+							        "$progress" == *"Настраивается пакет usbip"* ]]; then
+								zenity --info --width=200 --height=100 --text "usbip succesfully installed"
+								clear
+							fi
 						fi
+
+						
 					;;
 					"x2goserver" )
 						if [[ "$system" == *"Ubuntu"* ]]; then
@@ -189,6 +213,7 @@ while true; do
 		;;
 
 		"usbip" )
+			usbipd -D
 			while true; do
 				print_usbip_menu
 				selected_usbip=$( echo $usbip_menu | awk -F ',' '{print $1}' )
@@ -482,7 +507,9 @@ while true; do
 		;;
 
 		*)
-			zenity --warning --text "Operation was not selected" --width=330
+			zenity --warning --text --width=330 "Operation was not selected"
 		;;
 	esac
 done
+
+/usr/bin/xinit /usr/bin/x2goclient --thinclient --maximize

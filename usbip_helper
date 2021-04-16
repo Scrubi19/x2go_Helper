@@ -1,0 +1,141 @@
+#!/bin/bash
+
+
+print_usbip_menu() {
+	usbip_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+    --text="Select item:" \
+    --column="Available commands" \
+    --column="Operation for" \
+	"List of connected USB devices"  "client / server" \
+	"List of already shared devices" "client / server" \
+	"Bind usb device"                "       server" \
+	"Unbind usb device"              "       server" \
+	"Attach usb device"              "       client" \
+	"Detach usb device"              "       client" \
+	"Autostartup manage"             "client / server")
+
+}
+
+print_scripts_menu() {
+	scripts_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+    --text="Select item:" \
+    --column="Available commands" \
+    --column="Operation for" \
+    "⮪ Back" "" \
+	"Create systemd script for share USB device"  "server" \
+	"Delete systemd script for share USB device"  "server" \
+	"Create systemd script for attach USB device" "client" \
+	"Delete systemd script for attach USB device" "client")
+}
+
+
+if [ "$EUID" -ne 0 ]
+	then echo "Please run as root!"
+	exit
+fi
+
+usbipd -D
+while true; do
+	print_usbip_menu
+	selected_usbip=$( echo $usbip_menu | awk -F ',' '{print $1}' )
+
+	case "${selected_usbip}" in
+		"List of connected USB devices" )
+
+			list_connection=$(usbip list -l)
+			zenity --info --width=450 --height=250 --text "<b>usbip list -l</b> \n $list_connection "
+		;;
+
+		"List of already shared devices" )
+
+			ip=$(zenity --entry \
+				--title="" \
+				--text="Enter server IP:" \
+				--entry-text "localhost")
+
+			list_shared=$(usbip list -r $ip)
+
+			if [[ length=${#list_shared} -eq 0 ]]; then
+				zenity --warning --width=450 --height=150 --text "<b>usbip list -r $ip </b> \nno exportable devices found on $ip "
+			else
+				zenity --info --width=450 --height=250 --text "<b>usbip list -r $ip </b> \n$list_shared "
+			fi
+		;;
+
+		"Bind usb device" )
+
+			bind_ID=$(zenity --entry \
+				--title="" \
+				--text="Enter usb busID:" \
+				--entry-text "2-1")
+
+			usbip bind -b $bind_ID > /dev/null 2>&1
+			list_bind="$?"
+
+			if [[ list_bind -eq 0 ]]; then
+				zenity --info --width=450 --height=150 --text "<b> usbip bind -b $bind_ID</b>\nbind device on busid $bind_ID: complete"
+			elif [[ list_bind -eq 1 ]]; then
+				zenity --error --width=450 --height=150 --text "<b>usbip bind -b $bind_ID</b>\ndevice on busid $bind_ID is already bound to usbip-host or no exist"
+			fi
+		;;
+		"Unbind usb device" )
+
+			unbind_ID=$(zenity --entry \
+				--title="" \
+				--text="Enter usb busID:" \
+				--entry-text "2-1")
+
+			usbip unbind -b $unbind_ID > /dev/null 2>&1
+			list_unbind="$?"
+
+			if [[ list_unbind -eq 0 ]]; then
+				zenity --info --width=450 --height=150 --text "<b>usbip unbind -b $unbind_ID</b>\nunbind device on busid $unbind_ID: complete"
+			elif [[ list_unbind -eq 1 ]]; then
+				zenity --error --width=450 --height=150 --text "<b>usbip unbind -b $unbind_ID</b>\ndevice is not bound to usbip-host driver or no exist"
+			fi
+		;;
+		"Attach usb device" )
+
+			IP=$(zenity --entry \
+				--title="" \
+				--text="Enter server IP:" \
+				--entry-text "localhost")
+			ID=$(zenity --entry \
+				--title="" \
+				--text="Enter usb busID:" \
+				--entry-text "2-1")
+
+			sudo usbip attach -r $IP -b $ID /dev/null 2>&1
+			list_attach="$?"
+
+			if [[ list_attach -eq 0 ]]; then
+				zenity --info --width=450 --height=150 --text "<b>sudo usbip attach -r $IP -b $ID</b>\nAttach Request successfully completed"
+			elif [[ list_attach -eq 1 ]]; then
+				zenity --info --width=450 --height=150 --text "<b>sudo usbip attach -r $IP -b $ID</b>\nAttach Request for $ID failed - Device not found"
+			fi
+		;;
+		"Detach usb device" )
+
+			list_ports=$(sudo usbip port)
+
+			port=$(zenity --entry \
+				--title="Enter usb port:" \
+				--width=450 --height=150 \
+				--text="$list_ports" \
+				--entry-text "00")
+				
+			list_detach=$(sudo usbip detach --port=$port)
+
+			if [[ list_detach -eq 0 ]]; then
+				zenity --info --width=450 --height=150 --text "<b>sudo usbip detach --port=$port</b>\n$port is now detached or already detached\n"
+			elif [[ list_detach -eq 1 ]]; then
+				zenity --error --width=450 --height=150 --text "<b>sudo usbip detach --port=$port</b>Error while detaching device\n"
+			fi
+		;;
+
+		"")
+			/usr/bin/x2goclient --thinclient --maximize
+			exit
+		;;
+	esac
+done
