@@ -5,9 +5,9 @@ print_main_menu() {
     --text="Select Item" \
     --column="Available operations" \
     --column="Info" \
-	"Installation" "required at first start" \
-	"usbip"        "list of usbip commands" \
-	"x2go"         "manage x2go sessions")
+	"Installation"                    "required at first start" \
+	"Share and connect USB devices"   "list of usbip commands" \
+	"x2go"                      "manage x2go sessions")
 }
 
 print_installation_menu() {
@@ -56,7 +56,9 @@ print_x2go_menu() {
     --column="Available commands" \
     --column="Operation for" \
     "⮪ Back" "" \
-	"Create autostartup x2go session" "        client")
+	"Create autostartup x2go session" "        create client init.d script" \
+	"Delete x2go autostartup" "        delete client init.d script" \
+	"Start x2go session" "        client")
 }
 
 if [ "$EUID" -ne 0 ]
@@ -106,7 +108,7 @@ while true; do
 								echo "vhci-hcd"
 							} > /etc/modules
 	 	
-							sudo usbipd -D
+							usbipd -D
 
 							if [[ "$progress" == *"is already the newest version"* || \
 							      "$progress" == *"Уже установлен пакет"* ]]; then
@@ -212,7 +214,7 @@ while true; do
 			done
 		;;
 
-		"usbip" )
+		"Share and connect USB devices" )
 			usbipd -D
 			while true; do
 				print_usbip_menu
@@ -488,7 +490,52 @@ while true; do
 				x2go_selected_item=$( echo $x2go_menu | awk -F ',' '{print $1}' )
 				case "${x2go_selected_item}" in
 					"Create autostartup x2go session" )
-						echo "in developing..."
+						if [ -f /etc/init.d/x2goclient ]; then
+							zenity --info --width=200 --height=100 --text "autostartup script already exist"
+							break;
+						fi
+						{
+				  			echo "#! /bin/sh"
+				  			echo "set -e"
+				  			echo "case \"\$1\" in"
+				  			echo "    start)"
+				  			echo "        echo \"Starting x2go_helper\""
+				  			echo "        sudo /usr/bin/xinit /usr/bin/usbip_helper"
+				  			echo "    ;;"
+				  			echo "    *)"
+				  			echo "        N=/etc/init.d/\$NAME"
+				  			echo "        echo \"Usage: \$N {start|}\" >&2"
+				  			echo "        exit 1"
+				  			echo "    ;;"
+				  			echo "esac"
+				  			echo "exit 0"
+						} > /etc/init.d/x2goclient
+
+						chmod a+x /etc/init.d/x2goclient
+
+						cp bin/usbip_helper /usr/bin/usbip_helper
+
+						chmod a+x /usr/bin/usbip_helper
+
+						update-rc.d x2goclient defaults
+
+						zenity --info --width=200 --height=100 --text "autostartup script succesfully create"
+					;;
+
+					"Delete x2go autostartup" )
+						rm -f /usr/bin/usbip_helper
+						rm -f /etc/init.d/x2goclient
+						zenity --info --width=200 --height=100 --text "autostartup script succesfully deleted"
+					;;
+
+
+					"Start x2go session" )
+						if ! [ -f /etc/init.d/x2goclient ]; then
+							zenity --info --width=200 --height=100 --text "autostartup script wasn't create"
+							break;
+						fi
+						update-rc.d x2goclient defaults
+						shutdown -r -t 0 now
 					;;
 
 					"⮪ Back")
@@ -505,11 +552,5 @@ while true; do
 		"")
 			exit;
 		;;
-
-		*)
-			zenity --warning --text --width=330 "Operation was not selected"
-		;;
 	esac
 done
-
-/usr/bin/xinit /usr/bin/x2goclient --thinclient --maximize

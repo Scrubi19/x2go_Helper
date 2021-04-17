@@ -2,7 +2,7 @@
 
 
 print_usbip_menu() {
-	usbip_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+	usbip_menu=$(zenity --list  --width=450 --height=310 --title="usbip Helper" \
     --text="Select item:" \
     --column="Available commands" \
     --column="Operation for" \
@@ -17,7 +17,7 @@ print_usbip_menu() {
 }
 
 print_scripts_menu() {
-	scripts_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+	scripts_menu=$(zenity --list  --width=450 --height=310 --title="usbip Helper" \
     --text="Select item:" \
     --column="Available commands" \
     --column="Operation for" \
@@ -36,6 +36,7 @@ fi
 
 usbipd -D
 while true; do
+
 	print_usbip_menu
 	selected_usbip=$( echo $usbip_menu | awk -F ',' '{print $1}' )
 
