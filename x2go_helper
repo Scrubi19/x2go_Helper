@@ -490,121 +490,72 @@ while true; do
 				case "${x2go_selected_item}" in
 					"Create autostartup x2go session" )
 
-						if [[ "$system" == *"Ubuntu"* ]]; then
-							if [ -f /etc/systemd/system/x2gohelper.service ]; then
-								zenity --info --width=300 --height=200 --text "autostartup script already exist $(systemctl status x2gohelper)"
-								break;
-							fi
-							{
-					  			echo "[Unit]"
-					  			echo "Description=x2gohelper"
-					  			echo "[Service]"
-					  			echo "ExecStart=/scripts/x2gohelper"
-					  			echo "Type=oneshot"
-					  			echo "RemainAfterExit=yes"
-					  			echo "[Install]"
-					  			echo "WantedBy=multi-user.target"
-							} > /etc/systemd/system/x2gohelper.service	
-									
-							systemctl daemon-reload
-							systemctl enable x2gohelper
-
-							if ! [ -d /scripts ]; then
-								sudo mkdir /scripts
-							fi
-
-							{
-				  				echo "#!/bin/sh"
-				  				echo "set -e"
-				  				echo "echo \"Starting x2go_helper\""
-				  				echo "sudo /usr/bin/xinit /usr/bin/usbip_helper"
-				  				echo "exit 0"
-							} > /scripts/x2gohelper
-
-							chmod +x /scripts/x2gohelper
-
-							cp bin/usbip_helper /usr/bin/usbip_helper
-
-							chmod a+x /usr/bin/usbip_helper
-
-							zenity --info --width=200 --height=100 --text "autostartup script succesfully create"
-							
-						elif [[ "$system" == *"Debian"* || "$system" == *"Raspbian"* ]]; then
-							if [ -f /etc/init.d/x2goclient ]; then
-								zenity --info --width=200 --height=100 --text "autostartup script already exist"
-								break;
-							fi
-							{
-				  				echo "#! /bin/sh"
-				  				echo "set -e"
-				  				echo "case \"\$1\" in"
-				  				echo "    start)"
-				  				echo "        echo \"Starting x2go_helper\""
-				  				echo "        sudo /usr/bin/xinit /usr/bin/usbip_helper"
-				  				echo "    ;;"
-				  				echo "    *)"
-				  				echo "        N=/etc/init.d/\$NAME"
-				  				echo "        echo \"Usage: \$N {start|}\" >&2"
-				  				echo "        exit 1"
-				  				echo "    ;;"
-				  				echo "esac"
-				  				echo "exit 0"
-							} > /etc/init.d/x2goclient
-
-							chmod a+x /etc/init.d/x2goclient
-
-							cp bin/usbip_helper /usr/bin/usbip_helper
-
-							chmod a+x /usr/bin/usbip_helper
-
-							update-rc.d x2goclient defaults
-
-							zenity --info --width=200 --height=100 --text "autostartup script succesfully create"
+						if [ -f /etc/systemd/system/x2gohelper.service ]; then
+							zenity --info --width=300 --height=200 --text "autostartup script already exist $(systemctl status x2gohelper)"
+							break;
 						fi
+						{
+							echo "[Unit]"
+							echo "Description=x2gohelper"
+							echo "[Service]"
+							echo "ExecStart=/scripts/x2gohelper"
+							echo "Type=oneshot"
+							echo "RemainAfterExit=yes"
+							echo "[Install]"
+							echo "WantedBy=multi-user.target"
+						} > /etc/systemd/system/x2gohelper.service	
+									
+						systemctl daemon-reload
+						systemctl enable x2gohelper
+
+						if ! [ -d /scripts ]; then
+							sudo mkdir /scripts
+						fi
+
+						{
+							echo "#!/bin/sh"
+							echo "set -e"
+							echo "echo \"Starting x2go_helper\""
+							echo "sudo /usr/bin/xinit /usr/bin/usbip_helper"
+							echo "exit 0"
+						} > /scripts/x2gohelper
+
+						chmod +x /scripts/x2gohelper
+
+						cp bin/usbip_helper /usr/bin/usbip_helper
+
+						chmod a+x /usr/bin/usbip_helper
+
+						zenity --info --width=200 --height=100 --text "autostartup script succesfully create"
+							
 					;;
 
 					"Delete x2go autostartup" )
-						if [[ "$system" == *"Ubuntu"* ]]; then
-							systemctl stop x2gohelper
-							systemctl disable x2gohelper
+						systemctl stop x2gohelper
+						systemctl disable x2gohelper
 
-							systemctl status x2gohelper > /dev/null 2>&1
-							delete="$?"
+						systemctl status x2gohelper > /dev/null 2>&1
+						delete="$?"
 
-							sudo rm /scripts/x2gohelper
-							sudo rm /etc/systemd/system/x2gohelper.service
-							systemctl daemon-reload
+						sudo rm /scripts/x2gohelper
+						sudo rm /etc/systemd/system/x2gohelper.service
+						systemctl daemon-reload
 
-							if [[ delete -eq 4 ]]; then
-								zenity --info --width=450 --height=150 --text "<b>systemctl status x2gohelper </b>\x2gohelper.service already deleted"
-							else
-								zenity --info --width=450 --height=150 --text "<b>systemctl status x2gohelper </b>\x2gohelper.service succesfully deleted"
-							fi
-							
-						elif [[ "$system" == *"Debian"* || "$system" == *"Raspbian"* ]]; then
-							rm -f /usr/bin/usbip_helper
-							rm -f /etc/init.d/x2goclient
-							zenity --info --width=200 --height=100 --text "autostartup script succesfully deleted"
+						if [[ delete -eq 4 ]]; then
+							zenity --info --width=450 --height=150 --text "<b>systemctl status x2gohelper </b>\x2gohelper.service already deleted"
+						else
+							zenity --info --width=450 --height=150 --text "<b>systemctl status x2gohelper </b>\x2gohelper.service succesfully deleted"
 						fi
 					;;
 
 
 					"Start x2go session" )
-						if [[ "$system" == *"Ubuntu"* ]]; then
-							if ! [ -f /etc/systemd/system/x2gohelper.service ]; then
-								zenity --info --width=200 --height=100 --text "autostartup script wasn't create"
-								break;
-							fi
-							shutdown -r -t 0 now
-							
-						elif [[ "$system" == *"Debian"* || "$system" == *"Raspbian"* ]]; then
-							if ! [ -f /etc/init.d/x2goclient ]; then
-								zenity --info --width=200 --height=100 --text "autostartup script wasn't create"
-								break;
-							fi
-							update-rc.d x2goclient defaults
-							shutdown -r -t 0 now
+						if ! [ -f /etc/systemd/system/x2gohelper.service ]; then
+							zenity --info --width=200 --height=100 --text "autostartup script wasn't create"
+							break;
 						fi
+						shutdown -r -t 0 now
+							
 					;;
 
 					"⮪ Back")
