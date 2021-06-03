@@ -1,32 +1,62 @@
 #!/bin/bash
 
+f_usbip=false;
+f_x2goserver=false;
+f_x2goclient=false;
+f_kvm=false
+
 print_main_menu() {
-	menu=$(zenity --list --width=450 --height=310 --title="x2go Helper" \
+	menu=$(zenity --list --width=450 --height=310 --title="X2Go Helper" \
     --text="Select Item" \
     --column="Available operations" \
-    --column="Info" \
+    --column="      Description" \
 	"Installation"                    "required at first start" \
 	"Share and connect USB devices"   "list of usbip commands" \
-	"x2go"                      "manage x2go sessions")
+	"x2go"                            "manage x2go sessions" \
+	"kvm"                             "manage kvm VMs")
 }
 
 print_installation_menu() {
-	install_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+	usbip_status="not installed [-]"
+	x2cl_status="not installed [-]"
+	x2sr_status="not installed [-]"
+	kvm_status="not installed [-]"
+
+	if $f_usbip ; then
+	   	usbip_status="already installed [+]"
+	fi
+
+	if $f_x2goclient ; then
+	   	x2cl_status="already installed [+]"
+   	fi
+
+	if $f_x2goserver ; then
+	   	x2sr_status="already installed [+]"
+   	fi
+
+	if $f_kvm ; then
+	   	kvm_status="already installed [+]"
+   	fi
+
+	install_menu=$(zenity --list  --width=450 --height=310 --title="Installation" \
     --text="Install the required tools:" \
     --column="Available tools" \
-    --column="Operation for" \
-    "⮪ Back"          " " \
-    "usbip"            "tool for USB device sharing" \
-	"x2goserver"       "tool for host" \
-	"x2goclient"       "tool for client ")
+    --column="      Description" \
+    "<-Back"          " " \
+    "check"                        "checking tools(run at first launch)" \
+	"netplan settings to default"  "              need reboot system" \
+    "usbip"            "              $usbip_status" \
+	"x2goserver"       "              $x2sr_status" \
+	"x2goclient"       "              $x2cl_status" \
+	"kvm for server"   "              $kvm_status")
 }
 
 print_usbip_menu() {
-	usbip_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+	usbip_menu=$(zenity --list  --width=450 --height=310 --title="USB/IP(both)" \
     --text="Select item:" \
     --column="Available commands" \
-    --column="Operation for" \
-    "⮪ Back" "" \
+    --column="      Description" \
+    "<-Back" "" \
 	"List of connected USB devices"  "client / server" \
 	"List of already shared devices" "client / server" \
 	"Bind usb device"                "       server" \
@@ -38,11 +68,12 @@ print_usbip_menu() {
 }
 
 print_scripts_menu() {
+
 	scripts_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
     --text="Select item:" \
     --column="Available commands" \
-    --column="Operation for" \
-    "⮪ Back" "" \
+    --column="      Description" \
+    "<-Back" "" \
 	"Create systemd script for share USB device"  "server" \
 	"Delete systemd script for share USB device"  "server" \
 	"Create systemd script for attach USB device" "client" \
@@ -51,14 +82,28 @@ print_scripts_menu() {
 
 
 print_x2go_menu() {
-	x2go_menu=$(zenity --list  --width=450 --height=310 --title="x2go Helper" \
+	x2go_menu=$(zenity --list  --width=450 --height=310 --title="X2GO(client)" \
     --text="Select item:" \
     --column="Available commands" \
-    --column="Operation for" \
-    "⮪ Back" "" \
-	"Create autostartup x2go session" "        create client init.d script" \
-	"Delete x2go autostartup" "        delete client init.d script" \
+    --column="      Description" \
+    "<-Back" "" \
+	"Create autostartup x2go session" "      create client systemd script" \
+	"Delete x2go autostartup" "      delete client systemd script" \
 	"Start x2go session" "        client")
+}
+
+print_kvm_menu() {
+	kvm_menu=$(zenity --list  --width=450 --height=310 --title="KVM(server)" \
+    --text="Select item:" \
+    --column="Available commands" \
+    --column="      Description" \
+    "<-Back" "" \
+	"List of VMs" "" \
+	"Start VM" "" \
+	"Stop VM" "" \
+	"Delete VM"     "" \
+    "Open VMs" "" \
+    "Create new VM" "need move .iso to dir /kvm/iso/")
 }
 
 if [ "$EUID" -ne 0 ]
@@ -78,6 +123,52 @@ while true; do
 				print_installation_menu
 				selected_install_list=$( echo $install_menu | awk -F ',' '{print $1}' )
 				case "${selected_install_list}" in
+
+					"check" )
+						usbip_install=$(sudo dpkg -s linux-tools-`uname -r`)
+
+						if [[ "$usbip_install" == *"Status: install ok installed"* ]]; then
+							f_usbip=true;
+						fi
+
+						x2cl_install=$(sudo dpkg -s x2goclient)
+
+						if [[ "$x2cl_install" == *"Status: install ok installed"* ]]; then
+							f_x2goclient=true;
+						fi
+
+						x2sr_install=$(sudo dpkg -s x2goserver)
+
+						if [[ "$x2cl_install" == *"Status: install ok installed"* ]]; then
+							f_x2goserver=true;
+						fi
+
+						kvm_install=$(dpkg -s qemu)
+
+						netplan=$(cat /etc/netplan/01-network-manager-all.yaml)
+
+						if [[ "$kvm_install" == *"Status: install ok installed"* &&
+							  "$netplan" != *"NetworkManager"* ]]; then
+							f_kvm=true;
+						fi
+
+						break;
+					;;
+
+					"netplan settings to default")
+						{
+							echo "network:"
+						  	echo "  version: 2"
+						  	echo "  renderer: NetworkManager"
+						} > /etc/netplan/01-network-manager-all.yaml
+
+						netplan apply
+
+						f_kvm=false;
+
+						shutdown -r -t 0 now
+					;;
+
 					"usbip" )
 						if [[ "$system" == *"Raspbian"* ]]; then
 							apt-get update -y 
@@ -98,6 +189,7 @@ while true; do
 								zenity --info --width=200 --height=100 --text "usbip succesfully installed"
 								clear
 							fi
+							f_usbip=true
 
 						elif [[ "$system" == *"Ubuntu"* ]]; then
 							apt-get update -y 
@@ -119,6 +211,7 @@ while true; do
 								zenity --info --width=200 --height=100 --text "usbip succesfully installed"
 								clear
 							fi
+							f_usbip=true
 						fi
 					;;
 					"x2goserver" )
@@ -137,6 +230,7 @@ while true; do
 								zenity --info --width=200 --height=100 --text "x2goserver succesfully installed"
 								clear
 							fi
+							f_x2goserver=true
 						elif [[ "$system" == *"Debian"* || "$system" == *"Raspbian"* ]]; then
 							apt-key adv --recv-keys --keyserver keys.gnupg.net E1F958385BFE2B6E -y
 							{
@@ -150,15 +244,16 @@ while true; do
 
 							apt-get install x2goserver x2goserver-xsession libnss-ldap ldap-utils -y
 
-							# debian_progress=$(apt-get install x2goserver x2goserver-xsession -y)
-							# if [[ "$debian_progress" == *"is already the newest version"* || \
-						 #      "$debian_progress" == *"Уже установлен пакет"* ]]; then
-							# zenity --info --width=200 --height=100 --text "x2goserver already installed"
-							# elif [[ "$debian_progress" == *"Setting up "* ||
-						 #    	    "$debian_progress" == *"Настраивается пакет "* ]]; then
-							# 	zenity --info --width=200 --height=100 --text "x2goserver succesfully installed"
-							# 	clear 
-							# fi
+							debian_progress=$(apt-get install x2goserver x2goserver-xsession libnss-ldap ldap-utils -y)
+							if [[ "$debian_progress" == *"is already the newest version"* || \
+						      "$debian_progress" == *"Уже установлен пакет"* ]]; then
+								zenity --info --width=200 --height=100 --text "x2goserver already installed"
+							elif [[ "$debian_progress" == *"Setting up "* ||
+						    	    "$debian_progress" == *"Настраивается пакет "* ]]; then
+								zenity --info --width=200 --height=100 --text "x2goserver succesfully installed"
+								clear 
+							fi
+							f_x2goserver=true
 						fi
 					;;
 					"x2goclient" )
@@ -177,6 +272,7 @@ while true; do
 								zenity --info --width=200 --height=100 --text "x2goclient succesfully installed"
 								clear
 							fi
+							f_x2goclient=true
 						elif [[ "$system" == *"Debian"* || "$system" == *"Raspbian"* ]]; then
 							apt-key adv --recv-keys --keyserver keys.gnupg.net E1F958385BFE2B6E -y
 							{
@@ -189,20 +285,100 @@ while true; do
 							apt-get install x2go-keyring -y && apt-get update -y
 							apt-get install x2goclient -y
 
-							# debian_progress=$(apt-get install x2goclient -y)
-							# if [[ "$debian_progress" == *"is already the newest version"* || \
-						 #          "$debian_progress" == *"Уже установлен пакет"* ]]; then
-							# 	zenity --info --width=200 --height=100 --text "x2goclient already installed"
-							# elif [[ "$debian_progress" == *"Setting up "* ||
-						 #    	    "$debian_progress" == *"Настраивается пакет "* ]]; then
-							# 	zenity --info --width=200 --height=100 --text "x2goclient succesfully installed"
-							# 	clear 
-							# fi
+							debian_progress=$(apt-get install x2goclient -y)
+							if [[ "$debian_progress" == *"is already the newest version"* || \
+						          "$debian_progress" == *"Уже установлен пакет"* ]]; then
+								zenity --info --width=200 --height=100 --text "x2goclient already installed"
+							elif [[ "$debian_progress" == *"Setting up "* ||
+						    	    "$debian_progress" == *"Настраивается пакет "* ]]; then
+								zenity --info --width=200 --height=100 --text "x2goclient succesfully installed"
+								clear 
+							fi
+							f_x2goclient=true
 						fi
-
 					;;
 
-					"⮪ Back" )
+					"kvm for server" )
+						# if [[ "$system" == *"Ubuntu"* ]]; then
+
+						# elif [[ "$system" == *"Debian"* ]]; then
+
+						# fi
+
+						if ! [ -d /kvm ]; then
+							mkdir -p /kvm/{vhdd,iso}
+						fi
+						apt-get install cpu-checker
+						apt-get install chrony
+
+						systemctl enable chrony
+
+						kvm_exist_status=$(kvm-ok)
+
+						if [[ "$kvm_exist_status" != *"/dev/kvm exists"* ]]; then
+							zenity --info --width=200 --height=100 --text "kvm doesn't support on this machine (check BIOS)"
+							break;
+						fi
+
+						zenity --info --width=200 --height=100 --text "KVM acceleration can be used"
+
+						qemu_status=$(apt-get install qemu qemu-kvm libvirt-daemon-system virtinst libosinfo-bin)
+
+						if [[ "$qemu_status" == *"is already the newest version"* || \
+							  "$qemu_status" == *"Уже установлен пакет"* ]]; then
+							zenity --info --width=200 --height=100 --text "qemu already installed"
+						elif [[ "$qemu_status" == *"Setting up"* ||
+							    "$qemu_status" == *"Настраивается пакет"* ]]; then
+							zenity --info --width=200 --height=100 --text "qemu succesfully installed"
+							clear
+						fi
+
+						systemctl enable libvirtd
+
+						interface=$(ifconfig | grep "<UP,BROADCAST,RUNNING,MULTICAST>")
+						interface=$(echo $interface | cut -d ':' -f1)
+						data=$(ifdata -pa $interface)
+
+						if [[ "$interface" == *"w"* ]]; then
+							zenity --info --width=200 --height=100 --text "Creating virtual bridge impossible(Use LAN)"
+							break;
+						fi
+
+						subnet="$(echo $data | cut -d '.' -f1 ).$(echo $data | cut -d '.' -f2).$(echo $data | cut -d '.' -f3)"
+
+						{
+							echo "network:"
+						  echo "  ethernets:"
+							echo "    $interface:"
+							echo "      dhcp4: false"
+							echo "      dhcp6: false"
+							echo "  version: 2"
+							echo ""
+							echo "  bridges:"
+							echo "    br0:"
+							echo "      macaddress: 16:76:1a:3b:be:03"
+							echo "      interfaces:"
+							echo "        - $interface"
+							echo "      addresses:"
+							echo "        - $subnet.24/24"
+							echo "      gateway4: $subnet.1"
+							echo "      nameservers:"
+							echo "        addresses:"
+							echo "          - $subnet.1"
+							echo "          - $subnet.2"
+							echo "      dhcp4: false"
+							echo "      dhcp6: false"
+							echo "      parameters:"
+							echo "        stp: true"
+							echo "        forward-delay: 4"
+						} > /etc/netplan/01-network-manager-all.yaml
+
+						netplan apply
+
+						f_kvm=true;
+					;;
+
+					"<-Back" )
 						break;
 					;;
 
@@ -313,7 +489,7 @@ while true; do
 						fi
 					;;
 
-					"⮪ Back" )
+					"<-Back" )
 						break;
 					;;
 
@@ -468,7 +644,7 @@ while true; do
 								fi
 							;;
 
-							"⮪ Back" )
+							"<-Back" )
 								break;
 							;;
 
@@ -558,7 +734,87 @@ while true; do
 							
 					;;
 
-					"⮪ Back")
+					"<-Back")
+						break;
+					;;		
+
+					"")
+						break;
+					;;
+				esac
+			done
+		;;
+
+		"kvm" )
+			while true; do
+				print_kvm_menu
+				kvm_selected_item=$( echo $kvm_menu | awk -F ',' '{print $1}' )
+				case "${kvm_selected_item}" in
+					"List of VMs" )
+						list_VMs=$(virsh list --all)
+						zenity --info --width=300 --height=250 --text "<b>virsh list --all</b> \n $list_VMs "
+					;;
+
+					"Start VM" )
+						st_VM=$(zenity --entry \
+							--title="" \
+							--text="Enter VM name:" \
+							--entry-text "VM1")
+
+						list_VMs=$(virsh start $st_VM)
+						zenity --info --width=200 --height=100 --text "<b>virsh start $st_VM</b> \n $list_VMs "
+					;;
+
+					"Stop VM" )
+						sp_VM=$(zenity --entry \
+							--title="" \
+							--text="Enter VM name:" \
+							--entry-text "VM1")
+
+						list_VMs=$(virsh shutdown $sp_VM)
+						zenity --info --width=200 --height=100 --text "<b>virsh shutdown $sp_VM</b> \n $list_VMs "
+					;;
+
+					"Delete VM" )
+						ch_VM=$(zenity --entry \
+							--title="" \
+							--text="Enter VM name:" \
+							--entry-text "VM1")
+
+						virsh destroy $ch_VM
+						list_VMs=$(virsh undefine $ch_VM)
+						zenity --info --width=200 --height=100 --text "$list_VMs "
+					;;
+
+
+					"Open VMs" )
+						virt-viewer
+					;;
+
+					"Create new VM" )
+						zenity --info --width=200 --height=100 --text "Move iso image of system to /kvm/iso/"
+
+						new_VM=$(zenity --entry \
+							--title="" \
+							--text="Enter VM name:" \
+							--entry-text "VM1")
+
+						iso=$(zenity --entry \
+							--title="" \
+							--text="Enter iso fullName:" \
+							--entry-text "VM1")
+
+						virt-install -n $new_VM \
+						--autostart \
+						--network=bridge:br0 \
+						--ram 2048 --arch=x86_64 \
+						--vcpus=2 --cpu host --check-cpu \
+						--disk path=/kvm/vhdd/$new_VM-disk1.img,size=16 \
+						--cdrom /kvm/iso/$iso \
+						--os-type linux --os-variant=ubuntu20.04 --boot cdrom,hd,menu=on
+					;;
+
+					"<-Back")
 						break;
 					;;		
 
