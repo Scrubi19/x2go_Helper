@@ -348,7 +348,7 @@ while true; do
 
 						{
 							echo "network:"
-						  echo "  ethernets:"
+							echo "  ethernets:"
 							echo "    $interface:"
 							echo "      dhcp4: false"
 							echo "      dhcp6: false"
